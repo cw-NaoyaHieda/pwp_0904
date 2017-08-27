@@ -1,0 +1,522 @@
+\documentclass[dvipdfmx]{beamer}
+
+%%% 以下3つはハンドアウト印刷用
+%\documentclass[dvipdfm,handout]{beamer}
+%\usepackage{pgfpages}
+%\pgfpagesuselayout{4 on 1}[border shrink=3mm]
+
+\AtBeginDvi{\special{pdf:tounicode 90ms-RKSJ-UCS2}}
+%\setbeamersize{text margin left=1.5cm}
+%\voffset=0.5cm
+
+%%% メインテーマ
+%\usetheme{Berkeley}
+%\usetheme{CambridgeUS}
+%\usetheme{Default}
+%\usetheme{Darmstadt}
+%\usetheme{Hannover}
+%\usetheme{lankton-keynote}
+%\usetheme{Luebeck}
+%\usetheme{Marburg}
+\usetheme{Copenhagen}
+
+%%% カラーテーマ（省略可）
+%\usecolortheme{beaver}
+%\usecolortheme{beetle}
+%\usecolortheme{crane}
+%\usecolortheme{dolphin}
+%\usecolortheme{seagull}
+%\usecolortheme{wolverine}
+\useoutertheme{infolines}
+\usecolortheme[RGB={51,102,255}]{structure}                                                                                                      
+\usecolortheme{seahorse}
+
+
+\newcommand{\backupbegin}{
+\newcounter{framenumberappendix}
+\setcounter{framenumberappendix}{\value{framenumber}}
+}
+\newcommand{\backupend}{
+\addtocounter{framenumberappendix}{-\value{framenumber}}
+\addtocounter{framenumber}{\value{framenumberappendix}}
+}
+
+%%% フォント
+\renewcommand{\kanjifamilydefault}{\gtdefault} % 日本語フォントをゴシック
+\usefonttheme[onlylarge]{structurebold}
+\fontencoding{\encodingdefault}
+\fontfamily{\kanjifamilydefault}
+\fontseries{\seriesdefault}
+\fontshape{\shapedefault}
+\selectfont
+%\mathversion{bold} % 数式フォントをbold体
+\renewcommand{\figurename}{図}
+\renewcommand{\tablename}{表}
+
+%%% インナー, アウターテーマ（省略可）
+%\useinnertheme{circles}
+%\useoutertheme{infolines}
+
+
+%\logo{\includegraphics[width=1.5cm, height=1.5cm]{.jpg}} % ロゴをいれる
+\setbeamertemplate{navigation symbols}{} % ナビゲーションバーなし
+%\setbeamertemplate{background}[grid][step=5mm] % 背景グリッド
+\setbeamertemplate{footline}[frame number] % ページ番号の表示
+\setbeamerfont{footline}{size=\small,series=\bfseries}
+\setbeamercolor{footline}{fg=black,bg=black}
+\setbeamertemplate{caption}[numbered] % 図表番号の表示
+\setbeamerfont*{frametitle}{size=\normalsize,series=\bfseries} % フレーム文字の大きさ
+
+%%% パッケージ
+\usepackage[greek,russian,english,french,german,japanese]{babel}
+\usepackage{inputenc}
+\usepackage{times}
+\usepackage{ascmac}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{mathpazo}
+\usepackage{comment}
+\usepackage[hang,small,bf]{caption}
+\usepackage{color}
+\usepackage{algorithm,algorithmic}
+\usepackage{listings}
+\usepackage{multicol}
+%\usepackage{tikz}
+%\usetikzlibrary{arrows}
+%\tikzstyle{block}=[fill=blue,draw opacity=0.7,line width=1.4cm]
+
+\newcommand{\bm}[1]{\mbox{\boldmath $#1$}}
+\newcommand{\mapright}[1]{\mathop{\longrightarrow}\limits_{#1}}
+\newcommand{\argmax}{\mathop{\rm argmax}\limits}
+\makeatletter
+\@float@every@algorithm{\tiny}%%!! 全体をざっくりと \small へ
+\makeatother
+
+
+
+
+%%% Title, Author, etc.
+\title[タイトル]{粒子フィルタによるデフォルト率分布の推定}
+%\subtitle[サブタイトル]{}
+\author[発表者名]{塩濱研究室　稗田尚弥}
+\institute[所属]{東京理科大学大学院工学研究科経営工学専攻1年 \\ 学籍番号 4417621}
+\date[日付]{2017年9月6日}
+
+
+\begin{document}
+
+\begin{frame}[plain]
+\titlepage
+\end{frame}
+
+
+\begin{frame}{目次}
+\tableofcontents
+\end{frame}
+
+\section{目的・背景}
+\begin{frame}{背景}
+政府にとって重要な目的の一つは，民間の個人と企業に，安定した経済環境を提供することである．その目的を実現するひとつの方法が，銀行の倒産がほとんどおこらず，信頼のおける銀行システムを提供することである．\\
+銀行は，\textcolor{red}{信用創造}，金融仲介，決済機能の三つの機能によって，国内外で為替の流通を管理する金融機関である．
+それぞれ，\textcolor{red}{融資}，預金，決済という形で我々に提供されている．\\
+\end{frame}
+
+\begin{frame}
+銀行が抱えている次の三つのリスクを適切に把握し，維持すべき資本を算出することは，倒産を回避するために重要な業務である．
+\begin{block}{}
+\begin{itemize}
+ \item \textcolor{red}{信用リスク} 
+ \item 市場リスク 
+ \item オペレーショナルリスク 
+\end{itemize}
+\end{block}
+本研究ではこのうち，信用リスクにあたる\textcolor{red}{デフォルトリスク}に着目する．
+融資によってできるポートフォリオを与信ポートフォリオといい，債務不履行のことを\textcolor{red}{デフォルト}という．
+所有している与信ポートフォリオの中の，債務者全体のデフォルト率を把握することは，リスク管理において重要である．
+\end{frame}
+
+\begin{frame}{目的}
+\begin{itemize}
+\item
+実際のデフォルト率から，与信ポートフォリオのデフォルト率が従う確率分布を推定する．
+\item
+デフォルト率の分布は，先行研究より導出される二つの分布を用いて行う．本研究では，時変パラメータを持つVasicek 1-ファクターモデル，Lamb and Perraudin モデルと呼ぶ．
+\item
+状態の推定方法として，状態空間モデルによるParticleFilterを行い，EMアルゴリズムによってパラメータの推定を行う．
+特に，時変パラメータを持つVasicek 1-ファクターモデルは非線形非ガウスなモデルであり，カルマンフィルで状態を推定することが不可能であるためである．
+\end{itemize}
+\end{frame}
+
+\section{先行研究}
+
+\begin{frame}{Limiting Loan Loss Probability Distribution\\Vasicek and Oldrich}
+ポートフォリオの損失率を表すモデルとして、Vasicekらによるモデルが提案されている．
+ポートフォリオに含まれる各債務者の資産価値$U_i$をOne-factorモデルで定義する．\\
+\begin{itemize}
+\item
+ポートフォリオに含まれる債務者数を$N$件
+\item
+全ての債務者に共通する変動要因を$F$
+\item
+債務者$i$の個別の要因を$Z_i$
+\item
+債務者$i$と債務者$j$の相関係数({資産相関})を\\
+Corr($U_i,U_j$)=$\rho$ですべての債務者間で同一であるとする．
+\end{itemize}
+以上より$U_i$を次のよう定義できる．
+\begin{eqnarray*}
+\label{eq:eq5}
+U_{i}=\sqrt{\rho} F+\sqrt {1-\rho}Z_{i}, \hspace{10pt} F,Z_i\sim i.i.d\hspace{1pt} N(0,1),
+\hspace{10pt} i=1,\dots,N.\hspace{10pt}
+\vspace{-8pt}
+\end{eqnarray*}
+債務者$i$の資産$U_i$のデフォルト境界を$U$とすると，
+全体の共通要因Fを所与として$U_i$のデフォルト確率は次のようになる．
+{\small
+\begin{eqnarray*}
+\label{eq:eq9}
+{\rm Prob}(U_i<U|F)={\rm Prob}\biggl(Z_i<\frac{U-\sqrt{\rho}F}{\sqrt{1-\rho}}\biggr)=
+N\biggl(\frac{U-\sqrt{\rho}F}{\sqrt{1-\rho}}\biggr).
+\end{eqnarray*}
+}
+\end{frame}
+
+\begin{frame}{}
+債務者$i$がデフォルトする時刻を$T$として，その累積確率分布を$Q$としたときに，$U$が正規分布に従うことから百分位点対応で
+\begin{eqnarray*}
+N\biggl(\frac{U-\sqrt{\rho}F}{\sqrt{1-\rho}}\biggr)&=&N\biggl(\frac{N^{-1}(Q(T))-\sqrt{\rho}F}{\sqrt{1-\rho}}\biggr). 
+\end{eqnarray*}
+全ての企業に共通する要因（マクロ経済要因） $F$が与えられたときの条件付き確率である
+この確率を，今後「観測されるデフォルト率({$DR$})」とする．
+$F\sim N(0,1)$より，$F<N^{-1}(y)$の確率は$y$である．
+したがって，
+{\small
+\begin{equation}
+P\biggl(DR>N\biggl(\frac{N^{-1}(PD)-\sqrt{\rho}N^{-1}(y)}{\sqrt{1-\rho}}\biggr)\biggr)=y.\nonumber
+\end{equation}
+}
+\end{frame}
+\begin{frame}{}
+$G(DR)$を$DR$の周辺分布とすると，
+\begin{eqnarray*}
+\label{eq:eq14}
+&DR = N \biggl(\frac{N^{-1}(PD)+\sqrt{\rho}N^{-1}(G(DR))}{\sqrt{1-\rho}} \biggr)\\ 
+\Longleftrightarrow&G(DR) = N \biggl(\frac{\sqrt{1-\rho}N^{-1}(DR)-N^{-1}(PD)}{\sqrt{\rho}} \biggr).
+\end{eqnarray*}
+したがって，$DR$の確率密度関数は以下の式になる．
+\begin{eqnarray*}
+\label{eq:eq16}
+&g(DR)=\\
+&\sqrt{\frac{1- {\rho}}{ {\rho}}} \exp\biggl\{ \frac{1}{2} \biggl[ (N^{-1}(DR))^2 - \biggl( \frac{\sqrt{1- {\rho}}N^{-1}(DR)-N^{-1}({PD})}{\sqrt{ {\rho}}}\biggr)^2\biggr]\biggr\}.
+\end{eqnarray*}
+実際のデフォルト率DRの従う分布が，パラメータとして持つのは\\
+$PD$と$\rho$の二つの値となる．
+\end{frame}
+
+
+\begin{frame}{Dynamic Default Rates \\Lamb and Perraudin }
+Lamb and Perraudin は、Vasicek(1991)のモデルを、自己相関を考慮した一般化モデルに拡張している．\\
+所有しているポートフォリオに対して，n人の債務者を想定する．t-1時点でデフォルトしていないi番目の債務者が、時点tでデフォルトするかは潜在的な変数$Z_{i,t}$と定数cを用いて、$Z_{i,t}<c$が満たされるときとする．
+$Z_{i,t}$は$t=0,1,2,\dots,$と$i=1,2,\dots,n$として、ファクター構造で表す．\\
+
+\begin{equation}
+Z_{i,t}=\sqrt{\rho}x_i+\sqrt{1-\rho}\epsilon_{i,t}.\nonumber
+\label{eq:factor_1}
+\end{equation}
+また、$x_t$もファクター構造で表す．
+\begin{equation}
+x_{t}=\sqrt{\beta}x_{t-1}+\sqrt{1-\beta}\eta_t\nonumber
+\label{eq:autocorrelation}
+\end{equation}
+ここで、$\epsilon_{i,t}$や$\eta_t$は債務者$i,j$間や時点$t$の組み合わせにおいて独立な正規分布に従うとする．
+\end{frame}
+
+\begin{frame}
+i番目の債務者の無条件なデフォルト確率$q$が、下記を満たすとする．
+\begin{eqnarray}
+\Phi^{-1}(q)=c.\nonumber
+\end{eqnarray}
+時点t-1の情報による条件付きデフォルト確率を考える．デフォルトは下記を満たすとき起こる．
+\begin{eqnarray}
+&&\sqrt{\rho}x_t+\sqrt{1-\rho}\epsilon_{i,t}<c,\nonumber\\
+&&\sqrt{\rho}\sqrt{1-\beta}\eta_t+\sqrt{1-\rho}\epsilon_{i,t}<c-\sqrt{\rho}\sqrt{\beta}x_{t-1}.
+\label{eq:left}
+\end{eqnarray}
+\eqref{eq:left}の左辺は$N(0,1-\rho\beta)$に従う．よって、時点t-1までの情報の条件付きデフォルト確率は以下の通りである．
+\begin{eqnarray}
+q_{i,t}=\Phi(\frac{c-\sqrt{\rho}\sqrt{\beta}x_{t-1}}{\sqrt{1-\rho}\beta}).\nonumber
+\end{eqnarray}
+\end{frame}
+
+\begin{frame}
+共通要因である$\eta_t$と$x_{t-1}$の条件付きデフォルト確率は、債務者間で独立となる．よって、\eqref{eq:left}を$\epsilon$について変形し、$x_{t-1}$の条件付きで$\eta$を積分することで、n人のうちk人がデフォルトする確率P(k,n)を表す．
+\begin{eqnarray}
+\epsilon_{i,t}&<&
+\frac{c-\sqrt{\rho}\sqrt{\beta}x_{t-1}-\sqrt{\rho}\sqrt{1-\beta}\eta_t}
+{\sqrt{1-\rho}}\nonumber\\
+&&P(k,n)=\nonumber\\
+&&
+\begin{pmatrix}
+n\\
+k
+\end{pmatrix}
+\int_{0}^{1}\Phi(\frac{c-\sqrt{\rho}\sqrt{\beta}x_{t-1}-\sqrt{\rho}\sqrt{1-\beta}\eta_t}{\sqrt{1-\rho}})^k\nonumber\\
+&&\times \bigl[
+1-
+\Phi(
+\frac{c-\sqrt{\rho}\sqrt{\beta}x_{t-1}-\sqrt{\rho}\sqrt{1-\beta}\eta_t}{\sqrt{1-\rho}}
+)
+\bigr]^{n-k}d\Phi(\eta_k)
+\label{eq:tt}
+\end{eqnarray}
+\end{frame}
+
+\begin{frame}
+変数変換を行う
+\begin{eqnarray}
+s(\eta)
+&\equiv&
+\Phi(
+\frac{c-\sqrt{\rho}\sqrt{\beta}x_{t-1}-\sqrt{\rho}\sqrt{1-\beta}\eta_t}{\sqrt{1-\rho}}
+)\nonumber\\
+W(s)&=&\Phi(
+\frac{\sqrt{1-\rho}\Phi^{-1}(s)-c+\sqrt{\rho}\sqrt{\beta}x_{t-1}}{\sqrt{\rho}\sqrt{1-\beta}}
+)\nonumber
+\end{eqnarray}
+また、
+\begin{eqnarray}
+-d\Phi(f(s))=d\Phi(-f(s))\nonumber
+\end{eqnarray}
+上記より\eqref{eq:tt}は
+\begin{eqnarray}
+P(k,n)&=&
+-
+\begin{pmatrix}
+n\\
+k
+\end{pmatrix}
+\int_{0}^{1}s^k(1-s)^{n-k}
+\times\nonumber\\
+&&d \Phi(
+\frac{-(\sqrt{1-\rho}\Phi^{-1}(s)-c+\sqrt{\rho}\sqrt{\beta}x_{t-1})}
+{\sqrt{\rho}\sqrt{1-\beta}}
+)\nonumber\\
+&=&
+\begin{pmatrix}
+n\\
+k
+\end{pmatrix}
+\int_{0}^{1}s^k(1-s)^{n-k}
+\times
+dW(s)\nonumber
+\end{eqnarray}
+\end{frame}
+
+\begin{frame}
+債務者数を無限とし、$\theta$をデフォルトする割合(the pool that default)として考える。
+\begin{eqnarray}
+\lim_{n\rightarrow\infty}\sum_{i=0}^{[n\theta]}P(i,n)
+&=&
+\int_0^1\bigl(\lim_{n\rightarrow\infty}\sum_{i=0}^{[n\theta]}
+\begin{pmatrix}
+n\\
+i
+\end{pmatrix}
+s^i(1-s)^{n-i}
+\bigr)dW(s)\nonumber\\
+&=&
+\int_0^11(s<\theta)dW(s)\nonumber\\
+&=&
+W(\theta)-W(0)=W(\theta)\nonumber
+\end{eqnarray}
+従って、$x_{t-1}$の条件付きで損失密度は
+\begin{eqnarray}
+W(\theta_t)\equiv\Phi(\frac{\sqrt{1-\rho}\Phi^{-1}(\theta_t)-\Phi^{-1}(q)+\sqrt{\rho}\sqrt{\beta}x_{t-1}}{\sqrt{\rho}\sqrt{1-\beta}})\nonumber
+\end{eqnarray}
+よって損失率である$\tilde{\theta}\equiv\Phi^{-1}(\theta_t)$は正規分布に従い、次のように表せる。
+\begin{eqnarray}
+\tilde{\theta}\equiv\Phi^{-1}(\theta_t)\sim N\bigl(\frac{\Phi^{-1}(q)-\sqrt{\rho}\sqrt{\beta}x_{t-1}}{\sqrt{1-\rho}},
+\frac{\rho(1-\beta)}{1-\rho}
+\bigr)\nonumber
+\end{eqnarray}
+\end{frame}
+
+\section{モデル}
+\begin{frame}{時変パラメータを持つVasicek 1-ファクターモデル}
+Vasicek and Oldrich によって導出された式より，PDが時変パラメータであると考え，下記のモデルを用いる．
+以降，時変パラメータを持つVasicek 1-ファクターモデルとして扱う．\\
+状態方程式:
+$PD_t=\mu_{t-1}+\beta_{t-1}+\varepsilon_{1t}$.\\
+\begin{center}$\{\mu_t=\mu_{t-1}+\beta_{t-1}+\varepsilon_{2t},\quad\beta_t=\beta_{t-1}+\varepsilon_{3t}.\}$\end{center}
+観測方程式:
+$
+DR_t\sim g(DR_t|PD_t,\rho)
+$
+\begin{eqnarray}
+&&g(DR_t|PD_t,\rho)=\nonumber\\
+&&\sqrt{\frac{1- {\rho}}{ {\rho}}} \exp\biggl\{ \frac{1}{2} \biggl[ (N^{-1}(DR))^2 - \biggl( \frac{\sqrt{1- {\rho}}N^{-1}(DR)-N^{-1}({PD_t})}{\sqrt{ {\rho}}}\biggr)^2\biggr]\biggr\}.\nonumber
+\end{eqnarray}
+\begin{figure}[h]
+\begin{center}
+  \includegraphics[scale=0.8]{figure/状態空間モデル2.png} \\
+\caption{時変パラメータを持つVasicek 1-ファクターモデルの遷移図}
+\label{fig:時変パラメータを持つVasicek 1-ファクターモデルの遷移図}
+\end{center}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Lamb and Perraudin モデル}
+Lamb and Perraudin の拡張によって導出された下記のモデルを用いる．
+状態方程式:$x_t\sim N\left(\sqrt{\beta}x_{t-1} , 1-\beta\right)$\\
+観測方程式:$DR_t\sim N\left( \frac{\Phi^{-1}(q)-\sqrt{\rho}\sqrt{\beta}x_{t-1}}{\sqrt{1-\rho}}, \frac{\rho(1 - \beta)}{1 - \rho}\right)$\\ $DR_t$は実際に観測されたデフォルト率を正規分布の逆関数で変換した値\\
+$x_t$はマクロエコノミックファクター\\
+$\beta$はマクロエコノミックファクターの一次自己相関係数\\
+$q$はマートンモデルの閾値\\
+$\rho$が、デフォルト率のマクロエコノミックファクターへの感応度
+\begin{figure}[h]
+\begin{center}
+  \includegraphics[scale=0.8]{figure/state_space_lamb_and_perraudin.jpg} \\
+\caption{Lamb and Perraudin モデルの遷移図}
+\label{fig:Lamb and Perraudin モデルの遷移図}
+\end{center}
+\end{figure}
+\end{frame}
+
+\section{手法}
+
+\begin{frame}{状態空間モデルの推定}
+状態空間モデルの主な課題は，観測できない現在の状態変数を推定するか，もしくは観測系列の一部に基づいて将来の観測値を予測することにある.\\
+予測は利用可能な情報から，フィルタリング，平滑化，状態予測を行う. 
+\begin{itemize}
+ \item フィルタリング:時点$t$までの観測値に基づき，状態ベクトルの現在の値を推定する.
+ \item 平滑化:時点$t$までの観測値に基づき，時点$t$までの状態ベクトルの値を推定する.
+ \item 状態予測:時点$t$までの観測値に基づき，時点$t+1$の状態，および観測値を推定する.
+\end{itemize}
+本発表においては便宜上，一般の状態変数を$x$，観測変数を$y$で表す．
+\end{frame}
+
+\begin{frame}{フィルタリングの手順}
+フィルタリングは次のように再帰的に計算ができる.
+\begin{enumerate}
+ \item フィルタリング密度$\pi(x_{t-1}|y_{1:t-1})$と，$x_{t-1}$が与えられたもとでの$x_t$の条件付き分布に基づき，$y_{1:t-1}$が
+与えられたもとでの$x_t$の一期先予測分布を求める.
+\begin{equation}
+\label{eq:filter1}
+\pi(x_t|y_{1:t-1})=\int \pi(x_t|x_{t-1})\pi(x_{t-1}|y_{1:t-1})dx_{t-1}.
+\end{equation} 
+ \item 次の観測値の一期先予測分布を求める.
+\begin{equation*}
+\label{eq:filter2}
+\pi(y_t|y_{1:t-1})=\int \pi(y_t|x_t)\pi(x_t|y_{1:t-1})dx_t.
+\end{equation*}
+ \item 事前分布としての$\pi(x_t|y_{1:t-1})$と，尤度$\pi(y_t|x_t)$からベイズの定理を適用して，フィルタリング分布$\pi(x_t|y_{1:t})$を求める.
+\begin{equation*}
+\pi(x_t|y_{1:t})=\frac{\pi(y_t|x_t)\pi(x_t|y_{1:t-1})}{\pi(y_t|y_{1:t-1})}.
+\end{equation*}
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{平滑化の手順}
+任意の$t<T$において，$y_{1:T}$が与えられた下での$x_t$の条件付き分布は次のように計算できる.
+\begin{enumerate}
+ \item $y_{1:T}$の条件付きで，状態の系列$(x_0,\dots x_T)$の後ろ向きの遷移確立を求める.
+\begin{equation*}
+ \pi(x_t|x_{t+1},y_{1:T})=\frac{\pi(x_{t+1}|x_t)\pi(x_t|y_{1:t})}{\pi(x_{t+1}|y_{1:T})}.
+\end{equation*}
+ \item $y_{1:T}$が与えられたもとでの$x_t$の平滑化分布は，次のような$\pi(x_T|y_{1:T})$から始まる$t$の後ろ向き漸化式に従い求める.
+\begin{equation*}
+\pi(x_t|y_{1:T})=\pi(x_t|y_{1:t})\int \frac{\pi(x_{t+1}|x_t)}{\pi(x_{t+1}|y_{1:t})}\pi(x_{t+1}|y_{1:t})dx_{t+1}.
+\end{equation*}
+\end{enumerate}
+\end{frame}
+
+
+\begin{frame}{予測の手順}
+任意の$k>0$において，時点$t$での予測分布は次のように求める.
+\begin{enumerate}
+ \item 状態の$k$期先予測分布
+\begin{equation*}
+\pi(x_{t+k}|y_{1:t})=\int\pi(x_{t+k}|x_{t+k-1})\pi(x_{t+k-1}|y_{1:t})dx_{t+k-1}.
+\end{equation*}
+ \item 観測値の$k$期先予測分布
+\begin{equation*}
+\pi(y_{t+k}|y_{1:t})=\int \pi(y_{t+k}|x_{t+k})\pi(x_{t+k}|y_{1:t})dx_{t+k}.
+\end{equation*}
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Particle Filter}
+フィルタリングにおいて，一期先の状態変数の推定密度を求めるには積分計算が必要だが，一般のモデルでこの計算を解析的に行う事は困難である．よって，モンテカルロ計算によってこの計算を数値的に行うParticle Filterを用いる．\\
+Particle Filterの更新過程は，次の２ステップからなる．
+状態変数${x}^{(i)}_{0:t-1}$の各点に対し，
+\begin{itemize}
+\item ${x}^{(i)}_{0:t}$を得るために追加要素$x^{(i)}_t$をN個抽出する．
+\item その重み$\omega_{t-1}^{(i)}$を$\omega_t^{(i)}$に更新する.各$t$で$x^{(i)}_{0:t}$を生成するために用いられる重点密度を$\omega^{(i)}_t$とする.\\
+\end{itemize}
+$\omega^{(i)}_t$が次の形で表される.
+\begin{eqnarray*}
+\omega^{(i)}_t(x^{(i)}_{0:t}|y_{1:t})=w(x^{(i)}_t|x^{(i)}_{0:t-1}y_{1:t})\cdot w(x^{(i)}_{0:t-1}|y_{1:t-1}).
+\end{eqnarray*}
+重みの更新は以下のようになる.
+\begin{eqnarray*}
+\omega^{(i)}_t\propto
+\frac{g(y_t|x^{(i)}_t) \cdot f(x^{(i)}_t|x^{(i)}_{t-1})}{w_{t|t-1}(x^{(i)}_t|x^{(i)}_{0:t-1},y_{1:t})}\cdot \omega^{(i)}_{t-1}.
+\end{eqnarray*}
+\end{frame}
+
+\begin{frame}{Particle Filter}
+\begin{figure}[h]
+\begin{center}
+  \includegraphics[scale=0.6]{figure/粒子フィルタ2.png} \\
+\caption{Particle Filterのイメージ}
+\label{fig:状態空間モデルの遷移図}
+\end{center}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Forward Filtering Backward Smoothing}
+一般的にフィルタリングを行った後の平滑化は，移動平均やスプライン関数，周波数フィルタなど様々な種類が存在するが，これらは解析的にフィルタリングを行っている必要がある．Particle Filterによって求めた推定密度から、後ろ向きの遷移確率を求めるためにFFBSを用いる．
+Particle FilterのParticle${x}^{(i)}_{0:t}$を用いて，次の計算でweigthを更新する．
+\begin{eqnarray*}
+\omega_{t|n}^{(i)}(x_{0:t}^{(i)}|y_{1:T})=\omega_{t}^{(i)}\sum_{j=1}^N\omega_{t+1|n}^j\frac{f(x_t^{(i)}|x_{t+1}^{(j)})}{\sum_{k=1}^{N}\omega_t^{(k)}f(x_t^{(k)}|x_{t+1}^{(j)})}
+\end{eqnarray*}
+\end{frame}
+
+\begin{frame}{EMアルゴリズム}
+状態空間モデルに含まれるパラメータを推定するために，状態式と観測式の尤度を最大化したいと考える．
+これを効率的に行うために，EMアルゴリズムを用いる．
+\begin{itemize}
+\item Eステップで，初期パラメータ集合を用いて，潜在変数の事後分布を求める．
+求めた事後分布を用いて、パラメータ集合$\theta$の関数として、状態式と観測式の尤度関数の対数の期待値を求める.
+\item Mステップで，パラメータ$\theta$を変化させることで，尤度関数の対数の期待値が最大になる点を求める．
+\end{itemize}
+最大化したい尤度関数の対数の期待値Qは以下の式である．
+\begin{eqnarray*}
+Q(\theta)&=&\int log p_{\theta}(x_0)d(x_0)\\
+&+&\sum_{t=1}^T \int\int log f_{\theta}(x_{t-1}|x_{t})d(x_{t-1:t})\\
+&+&\sum_{t=0}^T\int log g_{\theta}(x_t|y_t) d(x_t)
+\end{eqnarray*}
+\end{frame}
+
+\begin{frame}{Particle Monte Carlo EM Algorithm}
+Particle Filterに対してEMアルゴリズムを行う場合，$Q(\theta)$を，Particleで近似する．具体的には，以下の式になる．
+\begin{eqnarray*}
+Q(\theta)&=&\sum_{i=1}^N \omega_{0|T}^{(i)} log\hspace{1mm} p_{\theta}(X_0^{(i)})\\
+&+&\sum_{t=1}^T \sum_{i=1}^N\sum_{j=1}^N \omega_{t|T}^{(ij)} log\hspace{1mm} f_{\theta}(X_{t-1}^{(i)}|X_{t}^{(j)})\\
+&+&\sum_{t=0}^T \sum_{i=1}^N \omega_{t|T}^{(i)} log\hspace{1mm} g_{\theta}(X_t^{(i)}|Y_t) 
+\end{eqnarray*}
+\end{frame}
+
+
+\appendix
+\backupbegin
+
+
+
+
+\backupend
+
+\end{document}

@@ -1,0 +1,132 @@
+\documentclass[a4j,11pt]{jarticle}
+\usepackage{fancybox}
+\usepackage{mathptmx}
+\usepackage{ascmac}
+\usepackage{amsmath}
+%\usepackage[top=30truemm,bottom=30truemm,left=25truemm,right=25truemm]{geometry}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{bm}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage{subcaption}
+\usepackage{here}
+\usepackage{wrapfig}
+\bibliographystyle{apalike}
+%\setlength{\voffset}{-25.4mm}
+\setlength{\topmargin}{-17.5mm}   %トップとヘッダの間隔
+%\setlength{\headheight}{20mm}   %ヘッダの高さ
+%\setlength{\headsep}{0mm}   %ヘッダとテキストの間隔
+\setlength{\textwidth}{45zw}   %テキストの幅
+\setlength{\hoffset}{-10mm}
+\setlength{\textheight}{45\baselineskip}   %テキストの高さ
+%\addtolength{\textheight}{\topskip}
+%\setlength{\footskip}{0mm}
+%\setlength{\oddsidemargin}{21.5mm}   %サイドとテキストの間隔（奇数ページ）
+%\setlength{\evensidemargin}{21.5mm}   %サイドとテキストの間隔（偶数ページ）
+\pagestyle{empty}   %ページ番号なし
+\newcommand{\g}[1]{\boldsymbol{#1}}
+\newcommand{\lw}[1]{\smash{\lower2.0ex\hbox{#1}}}
+\renewcommand{\baselinestretch}{1.0}
+\setlength\floatsep{0pt}
+\setlength\textfloatsep{0pt}
+\setlength\intextsep{0pt}
+\setlength\abovecaptionskip{0pt}
+\makeatletter
+\def\theequation{\arabic{equation}}   %数式番号を(章.式)形式
+\@addtoreset{equation}{section}
+%\def\thefigure{\thesection.\arabic{figure}}   %図番号を(章.図)形式
+%\@addtoreset{figure}{section}
+%\def\thetable{\thesection.\arabic{table}}   %表番号を(章.表)形式
+%\@addtoreset{table}{section}
+\def\tr{\mathop{\operator@font tr}\nolimits}
+\def\grad{\mathop{\operator@font grad}\nolimits}
+\def\St{\mathop{\operator@font St}\nolimits}
+\def\Hess{\mathop{\operator@font Hess}\nolimits}
+\def\D{\mathop{\operator@font D}\nolimits}
+\def\sym{\mathop{\operator@font sym}\nolimits}
+\def\s.t.{\mathop{\operator@font s.t.}\nolimits}
+\def\diag{\mathop{\operator@font diag}\nolimits}
+\def\section{\@startsection{section}{1}{\z@}
+   {0\Cvs \@plus.5\Cdp \@minus.2\Cdp}
+   {0.01\Cvs \@plus.3\Cdp}
+   {\normalfont \Large \bfseries}}
+\makeatother
+\makeatletter
+\renewenvironment{thebibliography}[1]
+{\section*{\refname\@mkboth{\refname}{\refname}}%
+   \list{\@biblabel{\@arabic\c@enumiv}}%
+        {\settowidth\labelwidth{\@biblabel{#1}}%
+         \leftmargin\labelwidth
+         \advance\leftmargin\labelsep
+	 \setlength\itemsep{-0.7zh}%←ここの数値を調整
+         \@openbib@code
+         \usecounter{enumiv}%
+         \let\p@enumiv\@empty
+         \renewcommand\theenumiv{\@arabic\c@enumiv}}%
+   \sloppy
+   \clubpenalty4000
+   \@clubpenalty\clubpenalty
+   \widowpenalty4000%
+   \sfcode`\.\@m}
+  {\def\@noitemerr
+    {\@latex@warning{Empty `thebibliography' environment}}%
+   \endlist}
+
+\def\JTeX{\leavevmode\lower .5ex\hbox{J}\kern-.17em\TeX}
+\def\JLaTeX{\leavevmode\lower.5ex\hbox{J}\kern-.17em\LaTeX}
+
+\makeatother
+\makeatletter
+  \renewcommand{\thealgorithm}
+\makeatother
+\makeatletter
+\def\subsection{\@startsection{subsection}{1}{\z@}
+   {0\Cvs \@plus.5\Cdp \@minus.2\Cdp}
+   {0.01\Cvs \@plus.3\Cdp}
+   {\normalfont \normalsize \bfseries}}
+\makeatother
+\newcommand{\figcaption}[1]{\def\@captype{figure}\caption{#1}}
+\newcommand{\tblcaption}[1]{\def\@captype{table}\caption{#1}}
+\makeatother
+\begin{document}
+\begin{center}
+{\Large \textbf{粒子フィルタリングによるデフォルト率分布の推定}}\\
+\begin{eqnarray*}
+&&東京理科大学大学院工学研究科経営工学専攻　稗田 尚弥\\
+&&東京理科大学工学部情報工学科　　　　　　　塩濱 敬之
+\end{eqnarray*}
+\end{center}
+\begin{flushright}
+
+\end{flushright}
+\vspace{-3zw}
+%%%%%これ以下, 本文%%%%%
+\section{はじめに}
+銀行の業務における適切なリスク管理手法は，経済環境の安定において必要不可欠である．
+融資によって構成される与信ポートフォリオのリスクとリターンの状況を評価し，その健全性や収益性を高めていく与信ポートフォリオの管理は，銀行業務において非常に重要である．与信ポートフォリオは，融資を行った相手が債務不履行（デフォルト）するリスクを抱えている．
+デフォルトをモデル化するために，企業$i$の資産価値を$U_i = a F + \sqrt{1-a^2}Z_i$で定義し，閾値$U$以下の値をとったときにその企業はデフォルトすると考える1-ファクターMertonモデルが提唱されている．ここで，$F$は全ての企業の共通ファクター，$Z_i$は各企業が個別にもつファクター，$a$は企業$i$の共通ファクターへの感応度である．本研究では連邦準備制度理事会で発表されている，米国のデフォルト率を観測変数とし，1-ファクターMartonモデルからHull (2012) と Lamb and Perraudin (2008) が求めたデフォルト率の従う分布を状態空間モデルに適用する．状態変数は，各デフォルト率分布が持つパラメータのうち，時変であると考えるべきものを状態変数とする．\\
+\hspace{4mm}状態空間モデルによる推定を行う際に，非線形非ガウスな一般の状態空間モデルでは，状態の事後分布を解析的に求める事が困難である．この対応策として，多くのモデルで提案されているのが粒子フィルタリングである．本研究でも粒子フィルタリングによってパラメータ推定を行った．また，時変でないと考えたパラメータの推定は，Douc, Moulines, and Stoffer (2014) を参考にParticle MCEM アルゴリズムなど,いくつかのEMアルゴリズムを適用した．
+\section{デフォルト率の状態空間モデル}
+本研究では，二つの論文から二種類の状態空間モデルを考案した．下記にモデルをまとめる．\\  
+1. 時変パラメータを持つVasicek 1-ファクターモデル:
+\begin{eqnarray*}
+&&DR_t\sim g(DR_t|PD_t,\rho_t), \\
+&&g(DR_t|PD_t,\rho_t)=\sqrt{\frac{1-\rho_t}{\rho_t}}\exp{\left\{ \frac{1}{2} \left[ (N^{-1}(DR_t))^2-\left(\frac{\sqrt{1-\rho_t}N^{-1}(DR_t)-N^{-1}(PD_t)}{\sqrt{\rho_t}} \right) \right] \right\}},\\
+&&PD_t\sim N(\phi_{PD}(PD_{t-1}-\mu_{PD})+\mu_{PD},\sigma_{PD}^2), \\
+&&\rho_t\sim N(\phi_{\rho}(\rho_{t-1}-\mu_{\rho})+\mu_{\rho},\sigma_{\rho}^2).
+\end{eqnarray*}
+2. Lamb and Perraudinモデル:
+\begin{eqnarray*}
+&&DR_t\sim N\left( \frac{\Phi^{-1}(q)-\sqrt{\rho}\sqrt{\beta}X_{t-1}}{\sqrt{1-\rho}}, \frac{\rho(1 - \beta)}{1 - \rho}\right), \\
+&&X_t\sim N\left(\sqrt{\beta}X_{t-1} , 1-\beta\right). 
+\end{eqnarray*}
+ここで$DR_t$は時点$t$でのデフォルト率，モデル1の$PD_t$は各企業の潜在的デフォルト率，$\rho_t$は時刻$t$における共通ファクターへの感応度，モデル2の$X_t$は各企業の共通要因を表している．また，モデル1の$\{\phi_{PD},\phi_{rho},\mu_{PD},\mu_{\rho},\sigma_{PD},\sigma_{\rho}\}$，モデル2の$\{q,\rho,\beta\}$が，時変でないと考えたパラメータである．
+\makeatletter
+\def\@biblabel#1{}
+\makeatother
+\begin{thebibliography}{n}
+\bibitem{key3}  J. C. Hull, Risk Management and Financial Institution, 2012, New York: Wiley.
+\bibitem{key4}  R. Lamb and W. Perraudin, Dynamic Default Rates, 2008, Working Paper.
+\bibitem{key16} R. Douc and E. Moulines and D.S Stoffer, Nonlinear time series. Theory, methods and applications with R examples, 2014, CRC Press.
+\end{thebibliography}
+\end{document}
