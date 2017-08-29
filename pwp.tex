@@ -84,6 +84,7 @@
 \usepackage{algorithm,algorithmic}
 \usepackage{listings}
 \usepackage{multicol}
+\usepackage{colortbl}
 %\usepackage{tikz}
 %\usetikzlibrary{arrows}
 %\tikzstyle{block}=[fill=blue,draw opacity=0.7,line width=1.4cm]
@@ -103,7 +104,7 @@
 %\subtitle[サブタイトル]{}
 \author[発表者名]{塩濱研究室　稗田尚弥}
 \institute[所属]{東京理科大学大学院工学研究科経営工学専攻1年 \\ 学籍番号 4417621}
-\date[日付]{2017年9月6日}
+\date[日付]{2017年9月4日}
 
 
 \begin{document}
@@ -146,12 +147,263 @@
 デフォルト率の分布は，先行研究より導出される二つの分布を用いて行う．本研究では，時変パラメータを持つVasicek 1-ファクターモデル，Lamb and Perraudin モデルと呼ぶ．
 \item
 状態の推定方法として，状態空間モデルによるParticleFilterを行い，EMアルゴリズムによってパラメータの推定を行う．
-特に，時変パラメータを持つVasicek 1-ファクターモデルは非線形非ガウスなモデルであり，カルマンフィルで状態を推定することが不可能であるためである．
+特に，時変パラメータを持つVasicek 1-ファクターモデルは非線形非ガウスなモデルであり，カルマンフィルタで状態を推定することが不可能であるためである．
 \end{itemize}
 \end{frame}
 
-\section{先行研究}
 
+\section{EMアルゴリズム}
+
+\begin{frame}{状態空間モデル}
+状態空間モデルとは，主に時系列解析に使われるモデルで，状態式と観測式から構成される．
+本発表においては便宜上，一般の状態変数を$x$，観測変数を$y$で表す．\\
+状態空間モデルの一般式は下記のように表される．\\
+\begin{center}
+状態式:$x_t = P_{\theta}(x_{t-1})$\\
+観測式:$y_t = Q_{\theta}(x_{t})\hspace{3.5mm}$
+\end{center}
+モデルを図で表す．
+\begin{figure}[h]
+\begin{center}
+  \includegraphics[scale=0.41]{figure/state_space.png} \\
+\label{fig:state_space}
+\end{center}
+\caption{状態空間モデル}
+\end{figure}
+\end{frame}
+
+
+\begin{frame}{状態空間モデル}
+状態空間モデルの主な課題は，既に観測された観測値を用いて，観測できない現在の状態変数と将来の観測値を予測することにある.\\
+\begin{itemize}
+ \item FIltering:\\
+ 時点\textcolor{blue}{$1\sim t$}の観測値に基づき，状態変数の時点\textcolor{green}{$t$}の値を推定する.
+ \item Smoothing:\\
+ 時点\textcolor{blue}{$1\sim t$}の観測値に基づき，時点\textcolor{blue}{$1\sim t$}の状態変数の値を推定する.
+ \item Prediction:\\
+ 時点\textcolor{blue}{$1\sim t$}の観測値に基づき，時点\textcolor{red}{$t+1$}の状態変数を推定する.
+\end{itemize}
+次のスライドよりFilteringとSmoothingの数式とMonte Carlo法による近似について説明する．
+\end{frame}
+
+\begin{frame}{Filteringの手順}
+Filteringは次のように再帰的に計算ができる.
+\begin{enumerate}
+ \item 1期前のFiltering分布$F_{t-1}(x_{t-1}|y_{1:t-1})$と，$x_{t-1}$が与えられたもとでの$x_t$の条件付き分布${P_\theta}_{dist}(x_t|x_{t-1})$に基づき，$y_{1:t-1}$が
+与えられたもとでの$x_t$の一期先予測分布を求める.
+\begin{equation*}
+\label{eq:filter1}
+{\pi_x}_{t}(x_t|y_{1:t-1})=\int {P_\theta}_{dist}(x_t|x_{t-1})F_{t-1}(x_{t-1}|y_{1:t-1})dx_{t-1}.
+\end{equation*} 
+ \item 次の観測値の一期先予測分布を求める.
+\begin{equation*}
+\label{eq:filter2}
+{\pi_y}_t(y_t|y_{1:t-1})=\int {Q_\theta}_{dist}(y_t|x_t){\pi_x}_{t}(x_t|y_{1:t-1})dx_t.
+\end{equation*}
+ \item 事前分布としての$\pi_x(x_t|y_{1:t-1})$と，尤度${Q_\theta}_{dist}(y_t|x_t)$からベイズの定理を適用して，現時点のFiltering分布$F_t(x_t|y_{1:t})$を求める.
+\begin{equation*}
+F_t(x_t|y_{1:t})=\frac{{Q_\theta}_{dist}(y_t|x_t){\pi_x}_{t}(x_t|y_{1:t-1})}{{\pi_y}_t(y_t|y_{1:t-1})}.
+\end{equation*}
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Particle Filter}
+状態変数の推定密度を求めるには積分計算が必要である．しかし，一般のモデルでは，この計算を解析的に行う事は困難である．\\
+よって，Monte Carlo計算によって数値的に行うParticle Filterを用いる．\\
+Particle Filterの更新過程は，次の２ステップからなる．\\
+状態系列${x}^{(i)}_{0:t-1}$の各点に対し，
+\begin{itemize}
+\item ${x}^{(i)}_{0:t}$を得るために追加要素$x^{(i)}_t$を$P_\theta$に従ってN個抽出する．\\
+\item FilterWeight $\omega_{t-1}^{(i)}$を$\omega_t^{(i)}$に更新する.\\
+\end{itemize}
+FilterWeightの更新は以下のように表される.
+\begin{eqnarray*}
+\omega^{(i)}_t\propto
+{Q_\theta}_{dist}(y_t|x^{(i)}_t) \cdot  \omega^{(i)}_{t-1}.
+\end{eqnarray*}
+\end{frame}
+
+
+
+\begin{frame}{Particle Filter}
+\begin{figure}[h]
+\begin{center}
+  \includegraphics[scale=0.41]{figure/filter_img.png} \\
+\label{fig:Em}
+\end{center}
+\caption{Particle Filter}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Smoothingの手順}
+任意の$t<T$において，$y_{1:T}$が与えられた下での$x_t$のSmoothing分布$S_t(x_t|y_{1:T})$は次のように計算できる.
+\begin{enumerate}
+ \item $y_{1:T}$の条件付きで，状態の系列$(x_0,\dots x_T)$の後ろ向きの遷移確立を求める.
+\begin{equation*}
+ S_t(x_t|x_{t+1},y_{1:T})=\frac{{P_\theta}_{dist}(x_{t+1}|x_t){F_x} (x_t|y_{1:t})}{\pi_x(x_{t+1}|y_{1:T})}.
+\end{equation*}
+ \item $y_{1:T}$が与えられたもとでの$x_t$のSmoothing分布は，次のような$\pi(x_T|y_{1:T})$から始まる$t$の後ろ向き漸化式に従い求めることができる.
+\begin{equation*}
+S_t(x_t|,y_{1:T})=F(x_t|y_{1:t})\int \frac{P_\theta(x_{t+1}|x_t)}{{\pi_x}_t(x_{t+1}|y_{1:t})}S_{t+1}(x_{t+1}|y_{1:T})dx_{t+1}.
+\end{equation*}
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Forward Filtering Backward Smoothing}
+Smoothingにおいても，積分計算をMonte Carlo計算で行う．Particle Filterによって求めた推定密度から、後ろ向きの遷移確率を求めるためにFFBSを用いる．
+Particle FilterのParticle${x}^{(i)}_{0:T}$を用いて，次の計算でSmoothing weigth $\omega_{t|T}^{(i)}$を更新する．
+\begin{eqnarray*}
+\omega_{t|T}^{(i)}=\omega_{t}^{(i)}\sum_{j=1}^N\omega_{t+1|T}^j\frac{{P_{\theta}}_{dist}(x_t^{(i)}|x_{t+1}^{(j)})}{\sum_{k=1}^{N}\omega_t^{(k)}{P_\theta}_{dist}(x_t^{(k)}|x_{t+1}^{(j)})}
+\end{eqnarray*}
+\end{frame}
+
+
+\begin{frame}{Forward Filtering Backward Smoothing}
+\begin{figure}[h]
+\begin{center}
+  \includegraphics[scale=0.41]{figure/smoothing_img.png} \\
+\label{fig:Em}
+\end{center}
+\caption{Forward Filtering Backward Smoothing}
+\end{figure}
+\end{frame}
+
+
+
+
+\begin{frame}{EMアルゴリズム}
+状態空間モデルに含まれるパラメータを推定するために，状態式と観測式の尤度を最大化したいと考える．
+これを効率的に行うために，EMアルゴリズムを用いる．
+\begin{itemize}
+\item Eステップで，初期パラメータを用いて，FilteringとSmoothingを行い潜在変数の事後分布を求める．
+求めた事後分布から、パラメータ集合$\theta$の関数として、対数尤度を求める.
+\item Mステップで，パラメータ$\theta$を変化させることで，対数尤度関数が最大になる点を求める．
+\end{itemize}
+最大化したい尤度関数の対数の期待値EMは以下の式である．
+\begin{eqnarray*}
+EM(\theta)&=&\int log {P_{\theta0}}_{dist}(x_0)d(x_0)\\
+&+&\sum_{t=1}^T \int\int log {P_{\theta}}_{dist}(x_{t-1}|x_{t})d(x_{t-1:t})\\
+&+&\sum_{t=0}^T\int log {Q_{\theta}}_{dist}(x_t|y_t) d(x_t)
+\end{eqnarray*}
+\end{frame}
+
+\begin{frame}{Particle Monte Carlo EM Algorithm}
+$EM(\theta)$を，Monte Carlo近似する．具体的には，以下の式になる．
+\begin{eqnarray*}
+EM(\theta)&=&\sum_{i=1}^N \omega_{0|T}^{(i)} log\hspace{1mm} {P_{\theta0}}_{dist}(X_0^{(i)})\\
+&+&\sum_{t=1}^T \sum_{i=1}^N\sum_{j=1}^N \omega_{t|T}^{(ij)} log\hspace{1mm} {P_{\theta}}_{dist}(X_{t-1}^{(i)}|X_{t}^{(j)})\\
+&+&\sum_{t=0}^T \sum_{i=1}^N \omega_{t|T}^{(i)} log\hspace{1mm} {Q_{\theta}}_{dist}(X_t^{(i)}|Y_t) 
+\end{eqnarray*}
+上式の$\omega_{t|T}^{(ij)}$は，Pair Wise Smoothing Weightといい，下記の式で求まる.\\
+\begin{eqnarray*}
+\omega_{t|T}^{(ij)}=\frac{\omega_{t-1}^i\omega_{t|N}^j {P_\theta}_{dist}(X_{t-1}^{i},X_{t}^{j})}{\sum_{l=1}^N \omega_{t-1}^{l}{P_\theta}_{dost}(X_{t-1}^{l},X_{t}^{j})}
+\end{eqnarray*}
+\end{frame}
+
+
+\begin{frame}{Pair Wise Smoothing Weight}
+\begin{figure}[h]
+\begin{center}
+  \includegraphics[scale=0.39]{figure/pair_img.png} \\
+\label{fig:Em}
+\end{center}
+\caption{Pair Wise Smoothing Weight}
+\end{figure}
+\end{frame}
+
+\begin{frame}{MStep}
+\begin{figure}[h]
+\begin{center}
+  \includegraphics[scale=0.39]{figure/em_img.png} \\
+\label{fig:Em}
+\end{center}
+\caption{Mステップで最大化したい尤度の合計}
+\end{figure}
+\end{frame}
+
+
+
+\section{モデル}
+\begin{frame}{時変パラメータを持つVasicek 1-ファクターモデル}
+Vasicek and Oldrich によって導出された式より，PDが時変パラメータであると考え，下記のモデルを用いる．
+以降，時変パラメータを持つVasicek 1-ファクターモデルとして扱う．\\
+状態方程式:
+$PD_t=\mu+\phi(PD_{t-1}-\mu)+\varepsilon_t.  \hspace{5mm} \varepsilon_t \sim N(0,sd)$\\
+観測方程式:
+$
+DR_t\sim g(DR_t|PD_t,\rho)
+$
+\begin{eqnarray}
+&&g(DR_t|PD_t,\rho)=\nonumber\\
+&&\sqrt{\frac{1- {\rho}}{ {\rho}}} \exp\biggl\{ \frac{1}{2} \biggl[ (N^{-1}(DR))^2 - \biggl( \frac{\sqrt{1- {\rho}}N^{-1}(DR)-N^{-1}({PD_t})}{\sqrt{ {\rho}}}\biggr)^2\biggr]\biggr\}.\nonumber
+\end{eqnarray}
+\begin{figure}[h]
+\begin{center}
+  \includegraphics[scale=0.8]{figure/状態空間モデル2.png} \\
+\caption{時変パラメータを持つVasicek 1-ファクターモデルの遷移図}
+\label{fig:時変パラメータを持つVasicek 1-ファクターモデルの遷移図}
+\end{center}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Lamb and Perraudin モデル}
+Lamb and Perraudin の拡張によって導出された下記のモデルを用いる．
+状態方程式:$x_t\sim N\left(\sqrt{\beta}x_{t-1} , 1-\beta\right)$\\
+観測方程式:$DR_t\sim N\left( \frac{\Phi^{-1}(q)-\sqrt{\rho}\sqrt{\beta}x_{t-1}}{\sqrt{1-\rho}}, \frac{\rho(1 - \beta)}{1 - \rho}\right)$\\ $DR_t$は実際に観測されたデフォルト率を正規分布の逆関数で変換した値\\
+$x_t$はマクロエコノミックファクター\\
+$\beta$はマクロエコノミックファクターの一次自己相関係数\\
+$q$はマートンモデルの閾値\\
+$\rho$が、デフォルト率のマクロエコノミックファクターへの感応度
+\begin{figure}[h]
+\begin{center}
+  \includegraphics[scale=0.8]{figure/state_space_lamb_and_perraudin.jpg} \\
+\caption{Lamb and Perraudin モデルの遷移図}
+\label{fig:Lamb and Perraudin モデルの遷移図}
+\end{center}
+\end{figure}
+\end{frame}
+
+
+\section{データ解析}
+\begin{frame}{米国データ}
+本研究では，Federal Reserve Board of Banksに
+によって発表されている米国の全ての銀行の６つのカテゴリーの損失データを用いる．\\
+カテゴリーはそれぞれ，
+不動産(RE)・クレジットカード(CC)・その他のローン(OC)・リース(L)・工業(CL)・農業(A)であり，期間は1985年から2016年までの4半期データで128期である．\\
+\begin{figure}[h]
+\begin{center}
+  \includegraphics[scale=0.33]{figure/default_data_2016.pdf} \\
+\caption{Default Data}
+\label{fig:data}
+\end{center}
+\end{figure}
+\end{frame}
+
+\begin{frame}{データ}
+データは，四半期ごとに年率変換されたものが,回収額を駆除して発表されているので，四半期あたりの値に変換し，Loss Given Defaultで除算することで，四半期毎のデフォルトデータを算出している．\\
+下記は各カテゴリーの基本統計量である．
+\begin{table}
+\caption{Default Data 基本統計量 (\%)}
+\scalebox{0.9}[0.9]{
+\begin{tabular}{|l|l|l|l|l|l|l|}\hline
+ & RE & CC & OC & L & CL & A \\\hline
+mean & 0.370 &\cellcolor[rgb]{1,0.4,0.1} 1.76 & 0.434 &\cellcolor[rgb]{0.1,0.4,1} 0.271 & 0.484 & 0.296 \\\hline
+max & 1.85 & \cellcolor[rgb]{1,0.4,0.1}4.22 & 1.30 & \cellcolor[rgb]{0.1,0.4,1}1.18 & 1.44 & 3.51 \\\hline
+min & 0.0286 & 0.736 &\cellcolor[rgb]{1,0.4,0.1} 0.185 & 0.00556 & 0.0667 &\cellcolor[rgb]{0.1,0.4,1} 0.000 \\\hline
+Volatility & 0.00184 & 0.00456 & 0.000452 &\cellcolor[rgb]{0.1,0.4,1} 0.000404 & 0.00113 &\cellcolor[rgb]{1,0.4,0.1} 0.00286 \\\hline
+Acf(1) & \cellcolor[rgb]{1,0.4,0.1}97.3 & 93.6 & 94.0 & \cellcolor[rgb]{0.1,0.4,1}78.3 & 94.4 & 83.6 \\\hline
+median & 0.179 &\cellcolor[rgb]{1,0.4,0.1} 1.64 & 0.378 & 0.214 & 0.393 & \cellcolor[rgb]{0.1,0.4,1}0.128 \\\hline
+\end{tabular}
+}
+\end{table}
+\end{frame}
+
+
+
+\appendix
+\backupbegin
+
+\section{先行研究}
 \begin{frame}{Limiting Loan Loss Probability Distribution\\Vasicek and Oldrich}
 ポートフォリオの損失率を表すモデルとして、Vasicekらによるモデルが提案されている．
 ポートフォリオに含まれる各債務者の資産価値$U_i$をOne-factorモデルで定義する．\\
@@ -344,94 +596,6 @@ W(\theta_t)\equiv\Phi(\frac{\sqrt{1-\rho}\Phi^{-1}(\theta_t)-\Phi^{-1}(q)+\sqrt{
 \end{eqnarray}
 \end{frame}
 
-\section{モデル}
-\begin{frame}{時変パラメータを持つVasicek 1-ファクターモデル}
-Vasicek and Oldrich によって導出された式より，PDが時変パラメータであると考え，下記のモデルを用いる．
-以降，時変パラメータを持つVasicek 1-ファクターモデルとして扱う．\\
-状態方程式:
-$PD_t=\mu_{t-1}+\beta_{t-1}+\varepsilon_{1t}$.\\
-\begin{center}$\{\mu_t=\mu_{t-1}+\beta_{t-1}+\varepsilon_{2t},\quad\beta_t=\beta_{t-1}+\varepsilon_{3t}.\}$\end{center}
-観測方程式:
-$
-DR_t\sim g(DR_t|PD_t,\rho)
-$
-\begin{eqnarray}
-&&g(DR_t|PD_t,\rho)=\nonumber\\
-&&\sqrt{\frac{1- {\rho}}{ {\rho}}} \exp\biggl\{ \frac{1}{2} \biggl[ (N^{-1}(DR))^2 - \biggl( \frac{\sqrt{1- {\rho}}N^{-1}(DR)-N^{-1}({PD_t})}{\sqrt{ {\rho}}}\biggr)^2\biggr]\biggr\}.\nonumber
-\end{eqnarray}
-\begin{figure}[h]
-\begin{center}
-  \includegraphics[scale=0.8]{figure/状態空間モデル2.png} \\
-\caption{時変パラメータを持つVasicek 1-ファクターモデルの遷移図}
-\label{fig:時変パラメータを持つVasicek 1-ファクターモデルの遷移図}
-\end{center}
-\end{figure}
-\end{frame}
-
-\begin{frame}{Lamb and Perraudin モデル}
-Lamb and Perraudin の拡張によって導出された下記のモデルを用いる．
-状態方程式:$x_t\sim N\left(\sqrt{\beta}x_{t-1} , 1-\beta\right)$\\
-観測方程式:$DR_t\sim N\left( \frac{\Phi^{-1}(q)-\sqrt{\rho}\sqrt{\beta}x_{t-1}}{\sqrt{1-\rho}}, \frac{\rho(1 - \beta)}{1 - \rho}\right)$\\ $DR_t$は実際に観測されたデフォルト率を正規分布の逆関数で変換した値\\
-$x_t$はマクロエコノミックファクター\\
-$\beta$はマクロエコノミックファクターの一次自己相関係数\\
-$q$はマートンモデルの閾値\\
-$\rho$が、デフォルト率のマクロエコノミックファクターへの感応度
-\begin{figure}[h]
-\begin{center}
-  \includegraphics[scale=0.8]{figure/state_space_lamb_and_perraudin.jpg} \\
-\caption{Lamb and Perraudin モデルの遷移図}
-\label{fig:Lamb and Perraudin モデルの遷移図}
-\end{center}
-\end{figure}
-\end{frame}
-
-\section{手法}
-
-\begin{frame}{状態空間モデルの推定}
-状態空間モデルの主な課題は，観測できない現在の状態変数を推定するか，もしくは観測系列の一部に基づいて将来の観測値を予測することにある.\\
-予測は利用可能な情報から，フィルタリング，平滑化，状態予測を行う. 
-\begin{itemize}
- \item フィルタリング:時点$t$までの観測値に基づき，状態ベクトルの現在の値を推定する.
- \item 平滑化:時点$t$までの観測値に基づき，時点$t$までの状態ベクトルの値を推定する.
- \item 状態予測:時点$t$までの観測値に基づき，時点$t+1$の状態，および観測値を推定する.
-\end{itemize}
-本発表においては便宜上，一般の状態変数を$x$，観測変数を$y$で表す．
-\end{frame}
-
-\begin{frame}{フィルタリングの手順}
-フィルタリングは次のように再帰的に計算ができる.
-\begin{enumerate}
- \item フィルタリング密度$\pi(x_{t-1}|y_{1:t-1})$と，$x_{t-1}$が与えられたもとでの$x_t$の条件付き分布に基づき，$y_{1:t-1}$が
-与えられたもとでの$x_t$の一期先予測分布を求める.
-\begin{equation}
-\label{eq:filter1}
-\pi(x_t|y_{1:t-1})=\int \pi(x_t|x_{t-1})\pi(x_{t-1}|y_{1:t-1})dx_{t-1}.
-\end{equation} 
- \item 次の観測値の一期先予測分布を求める.
-\begin{equation*}
-\label{eq:filter2}
-\pi(y_t|y_{1:t-1})=\int \pi(y_t|x_t)\pi(x_t|y_{1:t-1})dx_t.
-\end{equation*}
- \item 事前分布としての$\pi(x_t|y_{1:t-1})$と，尤度$\pi(y_t|x_t)$からベイズの定理を適用して，フィルタリング分布$\pi(x_t|y_{1:t})$を求める.
-\begin{equation*}
-\pi(x_t|y_{1:t})=\frac{\pi(y_t|x_t)\pi(x_t|y_{1:t-1})}{\pi(y_t|y_{1:t-1})}.
-\end{equation*}
-\end{enumerate}
-\end{frame}
-
-\begin{frame}{平滑化の手順}
-任意の$t<T$において，$y_{1:T}$が与えられた下での$x_t$の条件付き分布は次のように計算できる.
-\begin{enumerate}
- \item $y_{1:T}$の条件付きで，状態の系列$(x_0,\dots x_T)$の後ろ向きの遷移確立を求める.
-\begin{equation*}
- \pi(x_t|x_{t+1},y_{1:T})=\frac{\pi(x_{t+1}|x_t)\pi(x_t|y_{1:t})}{\pi(x_{t+1}|y_{1:T})}.
-\end{equation*}
- \item $y_{1:T}$が与えられたもとでの$x_t$の平滑化分布は，次のような$\pi(x_T|y_{1:T})$から始まる$t$の後ろ向き漸化式に従い求める.
-\begin{equation*}
-\pi(x_t|y_{1:T})=\pi(x_t|y_{1:t})\int \frac{\pi(x_{t+1}|x_t)}{\pi(x_{t+1}|y_{1:t})}\pi(x_{t+1}|y_{1:t})dx_{t+1}.
-\end{equation*}
-\end{enumerate}
-\end{frame}
 
 
 \begin{frame}{予測の手順}
@@ -447,73 +611,6 @@ $\rho$が、デフォルト率のマクロエコノミックファクターへ�
 \end{equation*}
 \end{enumerate}
 \end{frame}
-
-\begin{frame}{Particle Filter}
-フィルタリングにおいて，一期先の状態変数の推定密度を求めるには積分計算が必要だが，一般のモデルでこの計算を解析的に行う事は困難である．よって，モンテカルロ計算によってこの計算を数値的に行うParticle Filterを用いる．\\
-Particle Filterの更新過程は，次の２ステップからなる．
-状態変数${x}^{(i)}_{0:t-1}$の各点に対し，
-\begin{itemize}
-\item ${x}^{(i)}_{0:t}$を得るために追加要素$x^{(i)}_t$をN個抽出する．
-\item その重み$\omega_{t-1}^{(i)}$を$\omega_t^{(i)}$に更新する.各$t$で$x^{(i)}_{0:t}$を生成するために用いられる重点密度を$\omega^{(i)}_t$とする.\\
-\end{itemize}
-$\omega^{(i)}_t$が次の形で表される.
-\begin{eqnarray*}
-\omega^{(i)}_t(x^{(i)}_{0:t}|y_{1:t})=w(x^{(i)}_t|x^{(i)}_{0:t-1}y_{1:t})\cdot w(x^{(i)}_{0:t-1}|y_{1:t-1}).
-\end{eqnarray*}
-重みの更新は以下のようになる.
-\begin{eqnarray*}
-\omega^{(i)}_t\propto
-\frac{g(y_t|x^{(i)}_t) \cdot f(x^{(i)}_t|x^{(i)}_{t-1})}{w_{t|t-1}(x^{(i)}_t|x^{(i)}_{0:t-1},y_{1:t})}\cdot \omega^{(i)}_{t-1}.
-\end{eqnarray*}
-\end{frame}
-
-\begin{frame}{Particle Filter}
-\begin{figure}[h]
-\begin{center}
-  \includegraphics[scale=0.6]{figure/粒子フィルタ2.png} \\
-\caption{Particle Filterのイメージ}
-\label{fig:状態空間モデルの遷移図}
-\end{center}
-\end{figure}
-\end{frame}
-
-\begin{frame}{Forward Filtering Backward Smoothing}
-一般的にフィルタリングを行った後の平滑化は，移動平均やスプライン関数，周波数フィルタなど様々な種類が存在するが，これらは解析的にフィルタリングを行っている必要がある．Particle Filterによって求めた推定密度から、後ろ向きの遷移確率を求めるためにFFBSを用いる．
-Particle FilterのParticle${x}^{(i)}_{0:t}$を用いて，次の計算でweigthを更新する．
-\begin{eqnarray*}
-\omega_{t|n}^{(i)}(x_{0:t}^{(i)}|y_{1:T})=\omega_{t}^{(i)}\sum_{j=1}^N\omega_{t+1|n}^j\frac{f(x_t^{(i)}|x_{t+1}^{(j)})}{\sum_{k=1}^{N}\omega_t^{(k)}f(x_t^{(k)}|x_{t+1}^{(j)})}
-\end{eqnarray*}
-\end{frame}
-
-\begin{frame}{EMアルゴリズム}
-状態空間モデルに含まれるパラメータを推定するために，状態式と観測式の尤度を最大化したいと考える．
-これを効率的に行うために，EMアルゴリズムを用いる．
-\begin{itemize}
-\item Eステップで，初期パラメータ集合を用いて，潜在変数の事後分布を求める．
-求めた事後分布を用いて、パラメータ集合$\theta$の関数として、状態式と観測式の尤度関数の対数の期待値を求める.
-\item Mステップで，パラメータ$\theta$を変化させることで，尤度関数の対数の期待値が最大になる点を求める．
-\end{itemize}
-最大化したい尤度関数の対数の期待値Qは以下の式である．
-\begin{eqnarray*}
-Q(\theta)&=&\int log p_{\theta}(x_0)d(x_0)\\
-&+&\sum_{t=1}^T \int\int log f_{\theta}(x_{t-1}|x_{t})d(x_{t-1:t})\\
-&+&\sum_{t=0}^T\int log g_{\theta}(x_t|y_t) d(x_t)
-\end{eqnarray*}
-\end{frame}
-
-\begin{frame}{Particle Monte Carlo EM Algorithm}
-Particle Filterに対してEMアルゴリズムを行う場合，$Q(\theta)$を，Particleで近似する．具体的には，以下の式になる．
-\begin{eqnarray*}
-Q(\theta)&=&\sum_{i=1}^N \omega_{0|T}^{(i)} log\hspace{1mm} p_{\theta}(X_0^{(i)})\\
-&+&\sum_{t=1}^T \sum_{i=1}^N\sum_{j=1}^N \omega_{t|T}^{(ij)} log\hspace{1mm} f_{\theta}(X_{t-1}^{(i)}|X_{t}^{(j)})\\
-&+&\sum_{t=0}^T \sum_{i=1}^N \omega_{t|T}^{(i)} log\hspace{1mm} g_{\theta}(X_t^{(i)}|Y_t) 
-\end{eqnarray*}
-\end{frame}
-
-
-\appendix
-\backupbegin
-
 
 
 
